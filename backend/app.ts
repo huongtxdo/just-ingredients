@@ -1,16 +1,16 @@
-const config = require('./utils/config.js')
-// const config = require('./utils/config').default
+// const config = require('./utils/config.ts')
+import config from './utils/config'
 import express from 'express'
 require('express-async-errors')
 const app = express()
 import cors from 'cors'
 
-// import blogsRouter from './controllers/blogs.js'
-// import usersRouter from './controllers/users.js'
-// import loginRouter from './controllers/login.js'
+import recipesRouter from './controllers/recipes'
+import usersRouter from './controllers/users'
+import loginRouter from './controllers/login'
 
-import middleware from './utils/middleware.js'
-import logger from './utils/logger.js'
+import middleware from './utils/middleware'
+import logger from './utils/logger'
 import mongoose from 'mongoose'
 
 mongoose.set('strictQuery', false)
@@ -27,13 +27,14 @@ mongoose
 app.use(cors())
 app.use(express.static('dist'))
 app.use(express.json())
-app.use(middleware.requestLogger)
 
-// app.use(middleware.tokenExtractor)
-// app.use(middleware.userExtractor) => we can register a middleware for a specific set of routes as below
-// app.use('/api/blogs', middleware.userExtractor, blogsRouter)
-// app.use('/api/users', usersRouter)
-// app.use('/api/login', loginRouter)
+app.use(middleware.requestLogger)
+app.use(middleware.tokenExtractor)
+
+app.use(middleware.userExtractor) // => we can register a middleware for a specific set of routes as below
+app.use('/api/recipes', recipesRouter)
+app.use('/api/users', usersRouter)
+app.use('/api/login', loginRouter)
 
 if (process.env.NODE_ENV === 'test') {
   const testingRouter = require('./controllers/testing')
@@ -42,5 +43,5 @@ if (process.env.NODE_ENV === 'test') {
 
 // app.use(middleware.errorHandler)
 
-module.exports = app
+export default app
 

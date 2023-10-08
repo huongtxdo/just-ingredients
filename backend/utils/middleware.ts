@@ -1,7 +1,16 @@
-import logger from './logger'
-import jwt  from 'jsonwebtoken'
+import { Request, Response, NextFunction } from 'express'
+import jwt from 'jsonwebtoken'
 
-const requestLogger = (request: { method: any; path: any; body: any }, response: any, next: () => void) => {
+import logger from './logger'
+import User from '../models/user'
+
+import { IRequestWithTokenAndUser, IDecodedToken } from '../types'
+
+const requestLogger = (
+  request: Request,
+  _response: Response,
+  next: NextFunction
+) => {
   logger.info('Method: ', request.method)
   logger.info('Path: ', request.path)
   logger.info('Body: ', request.body)
@@ -9,7 +18,12 @@ const requestLogger = (request: { method: any; path: any; body: any }, response:
   next()
 }
 
-const errorHandler = (error: { message: any; name: string }, request: any, response: { status: (arg0: number) => { (): any; new(): any; send: { (arg0: { error: string }): any; new(): any }; json: { (arg0: { error: any }): any; new(): any } } }, next: () => void) => {
+const errorHandler = (
+  error: { message: any; name: string },
+  _request: Request,
+  response: Response,
+  next: NextFunction
+) => {
   logger.error(error.message)
   if (error.name === 'CastError') {
     return response.status(400).send({ error: 'malformatted id' })
@@ -23,26 +37,49 @@ const errorHandler = (error: { message: any; name: string }, request: any, respo
   next()
 }
 
-const tokenExtractor = (request: { get: (arg0: string) => any; token: any }, _response: any, next: () => void) => {
+const tokenExtractor = (
+  request: Request,
+  response: Response,
+  next: NextFunction
+) => {
   const authorization = request.get('authorization')
   if (authorization && authorization.startsWith('Bearer ')) {
-    request.token = authorization.replace('Bearer ', '')
+    ;(request as IRequestWithTokenAndUser).token = authorization.replace(
+      'Bearer ',
+      ''
+    )
   }
   next()
 }
 
-// const userExtractor = async (request, response, next) => {
-//   const authorization = request.get('authorization')
-//   if (authorization && authorization.startsWith('Bearer ')) {
-//     request.token = authorization.replace('Bearer ', '')
-//     const decodedToken = jwt.verify(request.token, process.env.SECRET)
-//     if (!decodedToken.id) {
-//       return response.status(401).json({ error: 'token invalid' })
-//     }
-//     request.user = await User.findById(decodedToken.id)
-//   }
-//   next()
-// }
+const userExtractor = async (
+  request: Request,
+  response: Response,
+  next: NextFunction
+) => {
+  const authorization = request.get('authorization')
+  if (authorization && authorization.startsWith('Bearer ')) {
+    ;(request as IRequestWithTokenAndUser).token = authorization.replace(
+      'Bearer ',
+      ''
+    )
+    const decodedToken = jwt.verify(
+      (request as IRequestWithTokenAndUser).token,
+      process.env.SECRET as string
+    ) as IDecodedToken
+
+    if (!decodedToken) {
+      return response.status(401).json({ error: 'unauthorized' }).end()
+    }
+
+    ;(request as IRequestWithTokenAndUser).user = await User.findById(
+      decodedToken.id
+    )
+    if (!(request as IRequestWithTokenAndUser).user)
+      throw new Error(`Cannot find user from token`)
+  }
+  next()
+}
 
 export default { requestLogger, errorHandler, tokenExtractor, userExtractor }
 

@@ -1,12 +1,34 @@
-require('dotenv').config()
+import path from 'path'
+import dotenv from 'dotenv'
 
-const PORT = process.env.PORT || 3001
+import { ENV, Config } from '../types'
 
-const MONGODB_URI =
-  process.env.NODE_ENV === 'test'
-    ? process.env.TEST_MONGODB_URI
-    : process.env.MONGODB_URI
+dotenv.config({ path: path.resolve(__dirname, '../.env') })
 
-// module.exports = { PORT, MONGODB_URI }
-export default { PORT, MONGODB_URI }
+// Loading process.env
+const getConfig = (): ENV => {
+  return {
+    PORT: process.env.PORT ? Number(process.env.PORT) : 3001,
+    MONGODB_URI:
+      process.env.NODE_ENV === 'test'
+        ? process.env.TEST_MONGODB_URI
+        : process.env.MONGODB_URI,
+  }
+}
+
+// Throw an error if any field is undefined
+const getSanitizedConfig = (config: ENV): Config => {
+  for (const [key, value] of Object.entries(config)) {
+    if (value === undefined) {
+      throw new Error(`missing key ${key} in .env`)
+    }
+  }
+  return config as Config
+}
+
+const config = getConfig()
+
+const sanitizedConfig = getSanitizedConfig(config)
+
+export default sanitizedConfig
 
